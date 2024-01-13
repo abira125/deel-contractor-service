@@ -7,6 +7,7 @@ const CustomError = require('./CustomError'),
     INVALID_PARAM: 'Invalid parameter',
     PARAM_MISSING: 'Parameter missing',
     SERVER_ERROR: 'Internal Server Error',
+    UNAUTHOURIZED_ERROR: 'Unauthorized request',
     NOT_FOUND: 'Not Found'
   };
 
@@ -46,6 +47,10 @@ const notFound = function (message) {
   return createError('NotFound', message, null, 404);
 };
 
+const unauthorizedError = function (message = ERROR_STRINGS.UNAUTHOURIZED_ERROR, detail) {
+  return createError('Unauthorized', message, detail, 401);
+};
+
 const sendError = function (error, res) {
   const statusCode = error.statusCode || 500;
   const errorResponse = {
@@ -70,5 +75,6 @@ module.exports = {
   serverError,
   notFound,
   sendError,
+  unauthorizedError,
   ERROR_STRINGS
 };

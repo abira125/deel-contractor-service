@@ -7,7 +7,8 @@ app.use(bodyParser.json());
 app.set('sequelize', sequelize);
 app.set('models', sequelize.models);
 
-const {getActiveContracts} = require('./services/ContractService');
+const {getActiveContracts} = require('./services/ContractService'),
+  {serverError, unauthorizedError, notFound, sendError} = require('./helper/Errors');
 
 /**
  * @returns contract by id
@@ -17,18 +18,29 @@ app.get('/contracts/:id',getProfile ,async (req, res) =>{
     {id} = req.params,
     {id: profileId, type: profileType} = req.profile;
 
-  const contract = await Contract.findOne({where: {id}});
+  try {
+    const contract = await Contract.findOne({where: {id}});
 
-  if (profileType === 'contractor' && profileId !== contract.ContractorId) {
-    return res.status(401).end();
+    if(!contract) {
+      const error = notFound('No contract found with the given id');
+      return sendError(error, res);
+    }
+
+    const contractDoesNotBelongToContractor = profileType === 'contractor' && profileId !== contract.ContractorId,
+      contractDoesNotBelongToClient = profileType === 'client' && profileId !== contract.ClientId,
+      contractDoesNotBelongToProfile = contractDoesNotBelongToContractor || contractDoesNotBelongToClient;
+
+    if (contractDoesNotBelongToProfile) {
+      const error = unauthorizedError();
+      return sendError(error, res);
+    }
+
+    res.json(contract);
+  } catch (error) {
+    console.error(error);
+    return sendError(serverError(), res);
   }
 
-  if (profileType === 'client' && profileId !== contract.ClientId) {
-    return res.status(401).end();
-  }
-
-  if(!contract) {return res.status(404).end();}
-  res.json(contract);
 });
 
 /**
@@ -37,10 +49,14 @@ app.get('/contracts/:id',getProfile ,async (req, res) =>{
 app.get('/contracts/', getProfile, async (req, res) => {
   // Get all contracts for the given profile id
   // ToDo: Don't pass req
-  const contracts = await getActiveContracts(req.profile, req);
 
-  // Return response
-  res.json({ contracts});
+  try {
+    const contracts = await getActiveContracts(req.profile, req);
+    return res.json({ contracts});
+  } catch (error) {
+    console.error(error);
+    return sendError(serverError(), res);
+  }
 });
 
 module.exports = app;
