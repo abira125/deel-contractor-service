@@ -235,54 +235,116 @@ app.get('/admin/best-profession', async (req, res) => {
 
   const startDate = new Date(start);
   const endDate = new Date(end);
-
-  // Get contractor payment map for the given time range
+  try {
+    // Get contractor payment map for the given time range
   // Example: [{ContractorId: 1, totalPaid: 100}, {ContractorId: 2, totalPaid: 200}]
-  const contractorPaymentArray = await Contract.findAll({
-    attributes: [
-      'ContractorId',
-      [sequelize.fn('SUM', sequelize.col('jobs.price')), 'totalPaid']
-    ],
-    include: [{
-      model: Job,
-      attributes: [], // No attributes from Job are directly selected
-      where: {
-        createdAt: {
-          [Op.gt]: startDate, // greater than start date
-          [Op.lt]: endDate   // less than end date
-        },
-        paid: true
-      }
-    }],
-    group: ['Contract.ContractorId'], // Group by ContractorId
-    raw: true // This ensures the output is not nested
-  });
+    const contractorPaymentArray = await Contract.findAll({
+      attributes: [
+        'ContractorId',
+        [sequelize.fn('SUM', sequelize.col('jobs.price')), 'totalPaid']
+      ],
+      include: [{
+        model: Job,
+        attributes: [], // No attributes from Job are directly selected
+        where: {
+          createdAt: {
+            [Op.gt]: startDate, // greater than start date
+            [Op.lt]: endDate   // less than end date
+          },
+          paid: true
+        }
+      }],
+      group: ['Contract.ContractorId'], // Group by ContractorId
+      raw: true // This ensures the output is not nested
+    });
 
-  if (contractorPaymentArray.length === 0) {
-    const error = notFound('No jobs found for the given time range');
-    return sendError(error, res);
-  }
-
-  // Transform per contractor payment to per profession payment map
-  const professionPayMap = {};
-  const prepareMap = async.mapLimit(contractorPaymentArray, 10, async (contractorPayment) => {
-    const {profession: contractorProfession} = await Profile.findOne({where: {id: contractorPayment.ContractorId}});
-
-    if(professionPayMap[contractorProfession]) {
-      professionPayMap[contractorProfession] += contractorPayment.totalPaid;
-    } else {
-      professionPayMap[contractorProfession] = contractorPayment.totalPaid;
+    if (contractorPaymentArray.length === 0) {
+      const error = notFound('No jobs found for the given time range');
+      return sendError(error, res);
     }
-  });
 
-  await prepareMap;
+    // Transform per contractor payment to per profession payment map
+    const professionPayMap = {};
+    const prepareMap = async.mapLimit(contractorPaymentArray, 10, async (contractorPayment) => {
+      const {profession: contractorProfession} = await Profile.findOne({where: {id: contractorPayment.ContractorId}});
 
-  //   console.log('professionPayMap', professionPayMap);
-  const professionalPayArray = Object.entries(professionPayMap);
-  const [profession, ] = professionalPayArray.sort((a, b) => {return b[1] - a[1];})[0];
+      if(professionPayMap[contractorProfession]) {
+        professionPayMap[contractorProfession] += contractorPayment.totalPaid;
+      } else {
+        professionPayMap[contractorProfession] = contractorPayment.totalPaid;
+      }
+    });
 
-  return res.json({result: profession});
+    await prepareMap;
 
+    //   console.log('professionPayMap', professionPayMap);
+    const professionalPayArray = Object.entries(professionPayMap);
+    const [profession, ] = professionalPayArray.sort((a, b) => {return b[1] - a[1];})[0];
+
+    return res.json({result: profession});
+  } catch (error) {
+    console.log(error);
+    return sendError(serverError(), res);
+  }
+});
+
+/**
+ * Get the best client
+ */
+app.get('/admin/best-clients', async (req, res) => {
+  const {start, end, limit = 2} = req.query;
+  const {Job, Profile, Contract} = req.app.get('models');
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+
+  try {
+    // Get client payment map for the given time range sorted by totalPaid in descending order
+    // Example: [{ClientId: 1, totalPaid: 100}, {ClientId: 2, totalPaid: 200}]
+    const clientPaymentMap = await Contract.findAll({
+      attributes: [
+        'ClientId',
+        [sequelize.fn('SUM', sequelize.col('jobs.price')), 'totalPaid']
+      ],
+      include: [{
+        model: Job,
+        attributes: [], // No attributes from Job are directly selected
+        where: {
+          createdAt: {
+            [Op.gt]: startDate, // greater than start date
+            [Op.lt]: endDate   // less than end date
+          },
+          paid: true
+        }
+      }],
+      group: ['Contract.ClientId'], // Group by ClientId
+      raw: true, // This ensures the output is not nested,
+      order: [
+        [sequelize.col('totalPaid'), 'DESC']
+      ]
+    });
+
+    if (clientPaymentMap.length === 0) {
+      const error = notFound('No jobs found for the given time range');
+      return sendError(error, res);
+    }
+
+    // Add full name to the clientPaymentMap
+    const prepareMap = async.mapLimit(clientPaymentMap, 10, async (clientPayment) => {
+      const {firstName, lastName} = await Profile.findOne({where: {id: clientPayment.ClientId}});
+      const fullName = `${firstName} ${lastName}`;
+
+      clientPayment.fullName = fullName;
+    });
+
+    await prepareMap;
+
+    //console.log('clientPayMap', clientPaymentMap);
+
+    return res.json({result: clientPaymentMap.slice(0, limit)});
+  } catch (error) {
+    console.log(error);
+    return sendError(serverError(), res);
+  }
 });
 
 
