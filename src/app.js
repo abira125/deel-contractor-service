@@ -13,14 +13,11 @@ const {getActiveContracts} = require('./services/ContractService');
  * @returns contract by id
  */
 app.get('/contracts/:id',getProfile ,async (req, res) =>{
-  const {Contract} = req.app.get('models');
-  const {id} = req.params;
-
-  const {id: profileId, type: profileType} = req.profile;
+  const {Contract} = req.app.get('models'),
+    {id} = req.params,
+    {id: profileId, type: profileType} = req.profile;
 
   const contract = await Contract.findOne({where: {id}});
-
-  console.log('contract',contract);
 
   if (profileType === 'contractor' && profileId !== contract.ContractorId) {
     return res.status(401).end();
@@ -29,7 +26,6 @@ app.get('/contracts/:id',getProfile ,async (req, res) =>{
   if (profileType === 'client' && profileId !== contract.ClientId) {
     return res.status(401).end();
   }
-
 
   if(!contract) {return res.status(404).end();}
   res.json(contract);
