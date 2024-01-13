@@ -167,4 +167,63 @@ app.post('/jobs/:job_id/pay', getProfile, async (req, res) => {
   }
 });
 
+/** Deposit money */
+app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
+  const {Profile} = req.app.get('models');
+  const {userId} = req.params;
+  const {amount_to_deposit: depositAmount} = req.body;
+  const {profile} = req;
+
+  // Check if the user is the same as the requesting profile
+  if (profile.id !== Number(userId)) {
+    return sendError(unauthorizedError(), res);
+  }
+
+  // Check if the user is a client
+  if (profile.type !== 'client') {
+    return sendError(unauthorizedError(), res);
+  }
+
+  // ToDo: Idempotence
+  try {
+
+    // Check if the amount is more than 25% of the total of jobs that are unpaid
+
+    // 1. Get all active contracts
+    const contracts = await getActiveContracts(profile, req);
+    const contractIds = contracts.map((contract) => {
+      return contract.id;
+    });
+
+    // 2. Get total price of all unpaid jobs for the given contracts
+    const {Job} = req.app.get('models');
+    const unpaidJobs = await Job.findAll({
+      where: {
+        [Op.and]: [
+          {paid: false},
+          {ContractId: {[Op.in]: contractIds}}
+        ]
+      }
+    });
+
+    const totalUnpaid = unpaidJobs.reduce((acc, job) => {
+      return acc + job.price;
+    }, 0);
+
+    // 3. If the amount is more than 25% of the total of jobs that are unpaid, return
+    if (depositAmount > totalUnpaid * 0.25) {
+      const error = badRequest({detail: 'Amount is more than 25% of the total of jobs that are unpaid'});
+      return sendError(error, res);
+    }
+
+    // 4. Deposit money
+    await Profile.update({balance: profile.balance + depositAmount}, {where: {id: userId}});
+
+    return res.status(200).json({message: 'Deposit successful'});
+  } catch (error) {
+    console.log(error);
+    return sendError(serverError(), res);
+  }
+});
+
 module.exports = app;
