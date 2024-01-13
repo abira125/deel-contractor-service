@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.0.1",
+    "eslint": "^8.56.0",
     "nodemon": "^2.0.22"
   },
   "engines": {
