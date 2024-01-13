@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const {Op} = require('sequelize');
+const async = require('async');
 const {sequelize} = require('./model');
 const {getProfile} = require('./middleware/getProfile');
 const app = express();
@@ -225,5 +226,64 @@ app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
     return sendError(serverError(), res);
   }
 });
+
+
+/** Get the best paying profession in a given time range */
+app.get('/admin/best-profession', async (req, res) => {
+  const {start, end} = req.query;
+  const {Job, Profile, Contract} = req.app.get('models');
+
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+
+  // Get contractor payment map for the given time range
+  // Example: [{ContractorId: 1, totalPaid: 100}, {ContractorId: 2, totalPaid: 200}]
+  const contractorPaymentArray = await Contract.findAll({
+    attributes: [
+      'ContractorId',
+      [sequelize.fn('SUM', sequelize.col('jobs.price')), 'totalPaid']
+    ],
+    include: [{
+      model: Job,
+      attributes: [], // No attributes from Job are directly selected
+      where: {
+        createdAt: {
+          [Op.gt]: startDate, // greater than start date
+          [Op.lt]: endDate   // less than end date
+        },
+        paid: true
+      }
+    }],
+    group: ['Contract.ContractorId'], // Group by ContractorId
+    raw: true // This ensures the output is not nested
+  });
+
+  if (contractorPaymentArray.length === 0) {
+    const error = notFound('No jobs found for the given time range');
+    return sendError(error, res);
+  }
+
+  // Transform per contractor payment to per profession payment map
+  const professionPayMap = {};
+  const prepareMap = async.mapLimit(contractorPaymentArray, 10, async (contractorPayment) => {
+    const {profession: contractorProfession} = await Profile.findOne({where: {id: contractorPayment.ContractorId}});
+
+    if(professionPayMap[contractorProfession]) {
+      professionPayMap[contractorProfession] += contractorPayment.totalPaid;
+    } else {
+      professionPayMap[contractorProfession] = contractorPayment.totalPaid;
+    }
+  });
+
+  await prepareMap;
+
+  //   console.log('professionPayMap', professionPayMap);
+  const professionalPayArray = Object.entries(professionPayMap);
+  const [profession, ] = professionalPayArray.sort((a, b) => {return b[1] - a[1];})[0];
+
+  return res.json({result: profession});
+
+});
+
 
 module.exports = app;
