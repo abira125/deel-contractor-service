@@ -9,7 +9,7 @@ app.set('sequelize', sequelize);
 app.set('models', sequelize.models);
 
 const {getActiveContracts} = require('./services/ContractService'),
-  {serverError, unauthorizedError, notFound, sendError} = require('./helper/Errors');
+  {serverError, unauthorizedError, notFound, badRequest, sendError} = require('./helper/Errors');
 
 /**
  * @returns contract by id
@@ -98,6 +98,73 @@ app.get('/jobs/unpaid', getProfile, async (req, res) => {
     return sendError(serverError(), res);
   }
 
+});
+
+/** Allows you to pay for a job given a job id
+ *
+*/
+app.post('/jobs/:job_id/pay', getProfile, async (req, res) => {
+  const {profile: clientProfile} = req,
+    {amount_to_pay: payAmount} = req.body,
+    {job_id: jobId} = req.params,
+    {Job, Contract, Profile} = req.app.get('models');
+
+  // ToDo: idempotence, refactor
+  try {
+    // Paying profile should be a client
+    if (clientProfile.type !== 'client') {
+      return sendError(unauthorizedError(), res);
+    }
+
+    const job = await Job.findOne({where: {
+      id: jobId
+    }});
+
+    const contract = await Contract.findOne({where: {
+      id: job.ContractId
+    }});
+
+    // Job should belong to the client
+    const clientId = contract.ClientId;
+    if (clientProfile.id !== clientId) {
+      const error = unauthorizedError('You are not elligible to pay for this job');
+      return sendError(error, res);
+    }
+
+    // Check for sufficient balance
+    if (clientProfile.balance < payAmount) {
+      const error = badRequest({detail: 'Insufficient balance'});
+      return sendError(error, res);
+    }
+
+    // Contract should be in progress
+    if (contract.status !== 'in_progress') {
+      const error = badRequest({detail: 'Contract has been terminated. Payment can not be made for a terminated contract.'});
+      return sendError(error, res);
+    }
+
+    // The job should be unpaid
+    if (job.paid === true) {
+      const error = badRequest({detail: 'This job has already been paid for!'});
+      return sendError(error, res);
+    }
+
+    // Transaction
+    await sequelize.transaction(async(t) => {
+      await clientProfile.update({balance: clientProfile.balance - payAmount}, {transaction: t});
+
+      const contractorProfile = await Profile.findOne({where: {id: contract.ContractorId}}, {transaction: t});
+      await contractorProfile.update({balance: contractorProfile.balance + payAmount}, {transaction: t});
+
+      // ToDo: Settle only if payment is complete
+      await job.update({paid: true}, {transaction: t});
+    });
+
+    return res.status(200).json({message: 'Payment successful'});
+  } catch (error) {
+    console.log(error);
+    return sendError(serverError(), res);
+  }
 });
 
 module.exports = app;
