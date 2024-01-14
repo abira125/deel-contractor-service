@@ -1,6 +1,8 @@
 const {Op} = require('sequelize'),
   async = require('async');
-const {Profile, Contract, Job, sequelize} = require('../model');
+
+const {Profile, Contract, Job, sequelize} = require('../model'),
+  {concurrenctTasks} = require('../config/env/production');
 
 const getActiveContractsForProfile = async (profile) => {
   try {
@@ -113,7 +115,7 @@ const groupPaymentsByContractor = async (startDate, endDate) => {
 
 const groupPaymentsByProfession = async (paymentsByContractor) => {
   const professionPayMap = {};
-  const prepareMap = async.mapLimit(paymentsByContractor, 10, async (contractorPayment) => {
+  const prepareMap = async.mapLimit(paymentsByContractor, concurrenctTasks, async (contractorPayment) => {
     const {profession: contractorProfession} = await Profile.findOne({where: {id: contractorPayment.ContractorId}});
 
     if(professionPayMap[contractorProfession]) {
@@ -157,7 +159,7 @@ const groupPaymentsByClient = async (startDate, endDate) => {
 
 const addClientDetailsToPayments = async (paymentsByClient) => {
 
-  const prepareMapPromise = async.mapLimit(paymentsByClient, 10, async (clientPayment) => {
+  const prepareMapPromise = async.mapLimit(paymentsByClient, concurrenctTasks, async (clientPayment) => {
     const {firstName, lastName} = await Profile.findOne({where: {id: clientPayment.ClientId}});
     const fullName = `${firstName} ${lastName}`;
 
