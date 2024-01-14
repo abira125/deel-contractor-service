@@ -53,7 +53,7 @@ app.get('/contracts/', getProfile, async (req, res) => {
   // ToDo: Don't pass req
 
   try {
-    const contracts = await getActiveContracts(req.profile, req);
+    const contracts = await getActiveContracts(req.profile);
     return res.json({ contracts});
   } catch (error) {
     console.error(error);
@@ -69,7 +69,7 @@ app.get('/jobs/unpaid', getProfile, async (req, res) => {
 
   try {
     // Get all active contracts
-    const contracts = await getActiveContracts(req.profile, req),
+    const contracts = await getActiveContracts(req.profile),
       contractIds = contracts.map((contract) => {
         return contract.id;
       });

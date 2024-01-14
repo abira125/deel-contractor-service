@@ -1,8 +1,7 @@
 const {Op} = require('sequelize');
+const {Profile, Contract} = require('../model');
 
-const getActiveContracts = async (profile, req) => {
-  const {Profile, Contract} = req.app.get('models');
-
+const getActiveContracts = async (profile) => {
   try {
     // Get profile id
     const {id: profileId, type: profileType} = profile;
