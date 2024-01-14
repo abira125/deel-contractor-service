@@ -4,6 +4,6 @@
  */
 
 module.exports = {
-  concurrenctTasks: process.env.CONCURRENT_TASKS || 10
+  concurrentTasks: process.env.CONCURRENT_TASKS || 10
 };
 

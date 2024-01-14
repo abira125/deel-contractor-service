@@ -55,7 +55,7 @@ describe('groupPaymentsByProfession', () => {
   });
 });
 
-describe.only('groupPaymentsByClient', () => {
+describe('groupPaymentsByClient', () => {
   it('returns payments grouped by client', async () => {
     Contract.findAll.mockResolvedValue([{ ClientId: 1, totalPaid: 200 }, { ClientId: 2, totalPaid: 100 }]);
 

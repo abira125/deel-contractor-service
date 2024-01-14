@@ -1,8 +1,9 @@
 const {Op} = require('sequelize'),
-  async = require('async');
+  async = require('async'),
+  _ = require('lodash');
 
 const {Profile, Contract, Job, sequelize} = require('../model'),
-  {concurrenctTasks} = require('../config/env/production');
+  {concurrentTasks} = require('../config/env/production');
 
 const getActiveContractsForProfile = async (profile) => {
   try {
@@ -65,13 +66,7 @@ const getNonTerminatedContractsForProfile = async (profile) => {
 };
 
 const getUnpaidJobsForContracts = async (contractIds) => {
-
-  // ToDo: Parallelize vs IN query
-  // For each contract get all unpaid (paid=false) jobs
-  // const unpaidJobs = [];
-  // async.mapLimit(contractIds, 3, (contractId) => {
-  //     Job
-  // })
+  // ToDo: Use IN query with chunking like in groupPaymentsByProfession for better performance and control over concurrency
   try {
     const unpaidJobs = await Job.findAll({
       where: {
@@ -137,7 +132,10 @@ const groupPaymentsByContractor = async (startDate, endDate) => {
       }
     }],
     group: ['Contract.ContractorId'], // Group by ContractorId
-    raw: true // This ensures the output is not nested
+    raw: true, // This ensures the output is not nested
+    order: [
+      [sequelize.col('ContractorId'), 'ASC']
+    ]
   });
 
   return contractorPaymentMap;
@@ -145,17 +143,41 @@ const groupPaymentsByContractor = async (startDate, endDate) => {
 
 const groupPaymentsByProfession = async (paymentsByContractor) => {
   const professionPayMap = {};
-  const prepareMap = async.mapLimit(paymentsByContractor, concurrenctTasks, async (contractorPayment) => {
-    const {profession: contractorProfession} = await Profile.findOne({where: {id: contractorPayment.ContractorId}});
 
-    if(professionPayMap[contractorProfession]) {
+  const contractorIds = paymentsByContractor.map((contractorPayment) => contractorPayment.ContractorId);
+  const contractorIdsChunks = _.chunk(contractorIds, 5);
+
+  // Get all contractor profiles
+  // Bulk in query instead of single query for each contractor for better performance
+  // Chunked contractorIds for better control over concurrency as the query can get unbounded
+  const contractorProfiles = [];
+  await async.mapLimit(contractorIdsChunks, concurrentTasks, async (contractorIdsChunk) => {
+    try {
+      const contractorProfilesChunk = await Profile.findAll({
+        attributes: ['id', 'profession'],
+        where: {
+          id: {
+            [Op.in]: contractorIdsChunk
+          }
+        }
+      });
+      contractorProfiles.push(...contractorProfilesChunk);
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  // Group payments by profession
+  contractorProfiles.forEach((contractorProfile) => {
+    const {profession: contractorProfession} = contractorProfile;
+    const contractorPayment = paymentsByContractor.find((payment) => payment.ContractorId === contractorProfile.id);
+
+    if (professionPayMap[contractorProfession]) {
       professionPayMap[contractorProfession] += contractorPayment.totalPaid;
     } else {
       professionPayMap[contractorProfession] = contractorPayment.totalPaid;
     }
   });
-
-  await prepareMap;
 
   return professionPayMap;
 };
@@ -171,8 +193,8 @@ const groupPaymentsByClient = async (startDate, endDate) => {
       attributes: [], // No attributes from Job are directly selected
       where: {
         createdAt: {
-          [Op.gt]: startDate, // greater than start date
-          [Op.lt]: endDate   // less than end date
+          [Op.gt]: startDate,
+          [Op.lt]: endDate
         },
         paid: true
       }
@@ -188,7 +210,7 @@ const groupPaymentsByClient = async (startDate, endDate) => {
 };
 
 const addClientDetailsToPayments = async (paymentsByClient) => {
-
+  // ToDo: Use IN query with chunking like in groupPaymentsByProfession
   const prepareMapPromise = async.mapLimit(paymentsByClient, concurrenctTasks, async (clientPayment) => {
     const {firstName, lastName} = await Profile.findOne({where: {id: clientPayment.ClientId}});
     const fullName = `${firstName} ${lastName}`;

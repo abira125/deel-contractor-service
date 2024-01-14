@@ -1,13 +1,21 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const {sequelize} = require('./model');
-const {getProfile} = require('./middleware/getProfile');
-const app = express();
+const express = require('express'),
+  bodyParser = require('body-parser'),
+  {sequelize} = require('./model'),
+  app = express();
+
 app.use(bodyParser.json());
 app.set('sequelize', sequelize);
 app.set('models', sequelize.models);
 
-const {getActiveContractsForProfile,
+const {getProfile} = require('./middleware/getProfile'),
+
+  {validateContractId,
+    validateStartAndEndDates,
+    validateJobId,
+    validateUserId,
+    validateAmountToDeposit} = require('./middleware/validate'),
+
+  {getActiveContractsForProfile,
     getNonTerminatedContractsForProfile,
     getUnpaidJobsForContracts,
     getJobAndContractByJobId,
@@ -16,12 +24,13 @@ const {getActiveContractsForProfile,
     groupPaymentsByProfession,
     groupPaymentsByClient,
     addClientDetailsToPayments} = require('./services/ContractService'),
+
   {serverError, unauthorizedError, notFound, badRequest, sendError} = require('./helper/Errors');
 
 /**
  * @returns contract by id
  */
-app.get('/contracts/:id',getProfile ,async (req, res) =>{
+app.get('/contracts/:id',[getProfile, validateContractId] ,async (req, res) =>{
   const {Contract} = req.app.get('models'),
     {id} = req.params,
     {id: profileId, type: profileType} = req.profile;
@@ -56,8 +65,6 @@ app.get('/contracts/:id',getProfile ,async (req, res) =>{
  */
 app.get('/contracts/', getProfile, async (req, res) => {
   // Get all contracts for the given profile id
-  // ToDo: Don't pass req
-
   try {
     const contracts = await getNonTerminatedContractsForProfile(req.profile);
     return res.json({ contracts});
@@ -93,11 +100,11 @@ app.get('/jobs/unpaid', getProfile, async (req, res) => {
 /** Allows you to pay for a job given a job id
  *
 */
-app.post('/jobs/:job_id/pay', getProfile, async (req, res) => {
+app.post('/jobs/:job_id/pay', [getProfile, validateJobId], async (req, res) => {
   const {profile} = req,
     {job_id: jobId} = req.params;
 
-  // ToDo: idempotence
+  // ToDo: Introduce idempotence keys to prevent duplicate payments
   try {
     // Paying profile should be a client
     if (profile.type !== 'client') {
@@ -154,7 +161,7 @@ app.post('/jobs/:job_id/pay', getProfile, async (req, res) => {
 });
 
 /** Deposit money */
-app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
+app.post('/balances/deposit/:userId', [getProfile, validateUserId, validateAmountToDeposit], async (req, res) => {
   const {Profile} = req.app.get('models');
   const {userId} = req.params;
   const {amount_to_deposit: depositAmount} = req.body;
@@ -170,7 +177,7 @@ app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
     return sendError(unauthorizedError(), res);
   }
 
-  // ToDo: Idempotence
+  // ToDo: Introduce idempotence keys to prevent duplicate deposits
   try {
 
     // Check if the amount is more than 25% of the total of jobs that are unpaid
@@ -205,7 +212,7 @@ app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
 
 
 /** Get the best paying profession in a given time range */
-app.get('/admin/best-profession', async (req, res) => {
+app.get('/admin/best-profession', [getProfile, validateStartAndEndDates], async (req, res) => {
   const {start, end} = req.query,
     startDate = new Date(start),
     endDate = new Date(end);
@@ -214,6 +221,8 @@ app.get('/admin/best-profession', async (req, res) => {
     // Group payments by contractor for the given time range
     // Example: [{ContractorId: 1, totalPaid: 100}, {ContractorId: 2, totalPaid: 200}]
     const paymentsByContractor = await groupPaymentsByContractor(startDate, endDate);
+
+    console.log('paymentsByContractor', paymentsByContractor);
 
     if (paymentsByContractor.length === 0) {
       const error = notFound('No jobs found for the given time range');
@@ -240,7 +249,7 @@ app.get('/admin/best-profession', async (req, res) => {
 /**
  * Get the best client
  */
-app.get('/admin/best-clients', async (req, res) => {
+app.get('/admin/best-clients', [getProfile, validateStartAndEndDates], async (req, res) => {
   const {start, end, limit = 2} = req.query,
     startDate = new Date(start),
     endDate = new Date(end);
