@@ -13,7 +13,9 @@
   },
   "scripts": {
     "start": "nodemon ./src/server.js",
+    "init": "node ./src/server.js",
     "seed": "node ./scripts/seedDb.js",
+    "deploy": "npm run seed && npm run init",
     "test": "jest ----detectOpenHandles --coverage tests"
   },
   "devDependencies": {
