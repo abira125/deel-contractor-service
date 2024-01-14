@@ -57,15 +57,6 @@ const getUnpaidJobsForContracts = async (contractIds) => {
 };
 
 const getJobAndContractByJobId = async (jobId) => {
-  // const job = await Job.findOne({where: {
-  //     id: jobId
-  //   }});
-
-  //   const contract = await Contract.findOne({where: {
-  //     id: job.ContractId
-  //   }});
-
-  // Replace above queries with a single query
   const jobWithContract = await Job.findOne({
     where: {
       id: jobId
