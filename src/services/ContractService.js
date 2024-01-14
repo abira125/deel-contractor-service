@@ -19,7 +19,37 @@ const getActiveContractsForProfile = async (profile) => {
         as: asKeyword,
         where: {
           status: {
-            [Op.in]: ['in_progress', 'new']// 'terminated'
+            [Op.in]: ['in_progress']
+          }
+        }
+      }]
+    });
+
+    const contracts = profileWithContracts ? profileWithContracts[asKeyword]: [];
+
+    return contracts;
+  } catch (error) {
+    throw error;
+  }
+
+};
+
+const getNonTerminatedContractsForProfile = async (profile) => {
+  try {
+    // Get profile id
+    const {id: profileId, type: profileType} = profile;
+
+    // Get all contracts for that profile Id: Both as a contractor and a client?
+    const asKeyword =  profileType === 'contractor' ? 'Contractor': 'Client';
+
+    const profileWithContracts = await Profile.findOne({
+      where: { id: profileId},
+      include: [{
+        model: Contract,
+        as: asKeyword,
+        where: {
+          status: {
+            [Op.in]: ['in_progress', 'new']
           }
         }
       }]
@@ -177,5 +207,6 @@ module.exports = {
   groupPaymentsByContractor,
   groupPaymentsByProfession,
   groupPaymentsByClient,
-  addClientDetailsToPayments
+  addClientDetailsToPayments,
+  getNonTerminatedContractsForProfile
 };

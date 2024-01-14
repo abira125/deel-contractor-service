@@ -8,6 +8,7 @@ app.set('sequelize', sequelize);
 app.set('models', sequelize.models);
 
 const {getActiveContractsForProfile,
+    getNonTerminatedContractsForProfile,
     getUnpaidJobsForContracts,
     getJobAndContractByJobId,
     makePaymentForJob,
@@ -42,7 +43,7 @@ app.get('/contracts/:id',getProfile ,async (req, res) =>{
       return sendError(error, res);
     }
 
-    res.json(contract);
+    return res.json(contract);
   } catch (error) {
     console.error(error);
     return sendError(serverError(), res);
@@ -58,7 +59,7 @@ app.get('/contracts/', getProfile, async (req, res) => {
   // ToDo: Don't pass req
 
   try {
-    const contracts = await getActiveContractsForProfile(req.profile);
+    const contracts = await getNonTerminatedContractsForProfile(req.profile);
     return res.json({ contracts});
   } catch (error) {
     console.error(error);
