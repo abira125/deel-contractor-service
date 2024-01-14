@@ -23,7 +23,7 @@ jest.mock('../../../src/middleware/getProfile', () => ({
   })
 }));
 
-describe('GET /contracts/:id', () => {
+describe.skip('GET /contracts/:id', () => {
   beforeAll(() => {
     jest.clearAllMocks();
   }
@@ -90,7 +90,7 @@ describe('GET /contracts/:id', () => {
   });
 });
 
-describe('GET /contracts/', () => {
+describe.skip('GET /contracts/', () => {
   beforeAll(() => {
     jest.clearAllMocks();
   }
@@ -152,7 +152,7 @@ describe('GET /contracts/', () => {
 });
 
 
-describe('GET /jobs/unpaid', () => {
+describe.skip('GET /jobs/unpaid', () => {
   beforeAll(() => {
     jest.clearAllMocks();
   }

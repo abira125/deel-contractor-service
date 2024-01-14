@@ -1,9 +1,17 @@
-const mockFindOne = jest.fn();
+const mockFindOneContract = jest.fn(),
+  mockFindOneProfile = jest.fn();
 
 const mockContract = {
-  findOne: mockFindOne
+  findOne: mockFindOneContract,
+  findAll: jest.fn()
 };
 
+const mockProfile = {
+  findOne: mockFindOneProfile
+};
+
+
 module.exports = {
-  Contract: mockContract
+  Contract: mockContract,
+  Profile: mockProfile
 };
