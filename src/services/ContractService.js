@@ -223,7 +223,7 @@ const groupPaymentsByClient = async (startDate, endDate) => {
 
 const addClientDetailsToPayments = async (paymentsByClient) => {
   // ToDo: Use IN query with chunking like in groupPaymentsByProfession
-  const prepareMapPromise = async.mapLimit(paymentsByClient, concurrenctTasks, async (clientPayment) => {
+  const prepareMapPromise = async.mapLimit(paymentsByClient, concurrentTasks, async (clientPayment) => {
     const {firstName, lastName} = await Profile.findOne({where: {id: clientPayment.ClientId}});
     const fullName = `${firstName} ${lastName}`;
 
