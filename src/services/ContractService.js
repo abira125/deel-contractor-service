@@ -6,8 +6,8 @@ const {Profile, Contract, Job, sequelize} = require('../model'),
   {concurrentTasks} = require('../config/env/production');
 
 /**
- * Get all active contracts for a profile 
- * @param {Object} profile 
+ * Get all active contracts for a profile
+ * @param {Object} profile
  * @returns in_progress contracts for the profile
  */
 const getActiveContractsForProfile = async (profile) => {
@@ -127,7 +127,7 @@ const getJobAndContractByJobId = async (jobId) => {
  * @param {Object} contract
  * @param {Object} job
  * @param {Number} amountToPay
- */ 
+ */
 const makePaymentForJob = async (clientProfile, contract, job, amountToPay) => {
   // Transaction
   await sequelize.transaction(async(t) => {
