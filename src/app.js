@@ -49,7 +49,7 @@ app.get('/health', async (req, res) => {
 });
 
 /**
- * @returns contract by id
+ * - Returns a list of contracts belonging to a user (client or contractor), the list should only contain non terminated contracts.
  */
 app.get('/contracts/:id',[getProfile, validateContractId] ,async (req, res) =>{
   const {Contract} = req.app.get('models'),
@@ -82,7 +82,7 @@ app.get('/contracts/:id',[getProfile, validateContractId] ,async (req, res) =>{
 });
 
 /**
- * @returns contracts
+ * - Returns a list of contracts belonging to a user (client or contractor), the list should only contain non terminated contracts.
  */
 app.get('/contracts/', getProfile, async (req, res) => {
   // Get all contracts for the given profile id
@@ -96,7 +96,7 @@ app.get('/contracts/', getProfile, async (req, res) => {
 });
 
 /**
- * Gets unpaid jobs for a user
+ * Get all unpaid jobs for a user (**_either_** a client or contractor), for **_active contracts only_**.
  */
 app.get('/jobs/unpaid', getProfile, async (req, res) => {
   try {
@@ -118,8 +118,8 @@ app.get('/jobs/unpaid', getProfile, async (req, res) => {
   }
 });
 
-/** Allows you to pay for a job given a job id
- *
+/**
+ *Pay for a job, a client can only pay if his balance >= the amount to pay. The amount should be moved from the client's balance to the contractor balance.
 */
 app.post('/jobs/:job_id/pay', [getProfile, validateJobId], async (req, res) => {
   const {profile} = req,
@@ -181,7 +181,7 @@ app.post('/jobs/:job_id/pay', [getProfile, validateJobId], async (req, res) => {
   }
 });
 
-/** Deposit money */
+/** Deposits money into the the the balance of a client, a client can't deposit more than 25% his total of jobs to pay. (at the deposit moment) */
 app.post('/balances/deposit/:userId', [getProfile, validateUserId, validateAmountToDeposit], async (req, res) => {
   const {Profile} = req.app.get('models');
   const {userId} = req.params;
@@ -232,7 +232,8 @@ app.post('/balances/deposit/:userId', [getProfile, validateUserId, validateAmoun
 });
 
 
-/** Get the best paying profession in a given time range */
+/** **_GET_** `/admin/best-profession?start=<date>&end=<date>` - Returns the profession that earned the most money (sum of jobs paid) for any contactor that worked in the query time range.
+ */
 app.get('/admin/best-profession', [getProfile, validateStartAndEndDates], async (req, res) => {
   const {start, end} = req.query,
     startDate = new Date(start),
@@ -268,7 +269,7 @@ app.get('/admin/best-profession', [getProfile, validateStartAndEndDates], async 
 });
 
 /**
- * Get the best client
+ * **_GET_** `/admin/best-clients?start=<date>&end=<date>&limit=<integer>`
  */
 app.get('/admin/best-clients', [getProfile, validateStartAndEndDates], async (req, res) => {
   const {start, end, limit = 2} = req.query,
