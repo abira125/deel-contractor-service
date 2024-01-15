@@ -1,7 +1,8 @@
 const express = require('express'),
   bodyParser = require('body-parser'),
   {sequelize} = require('./model'),
-  app = express();
+  app = express(),
+  fs = require('fs');
 
 app.use(bodyParser.json());
 app.set('sequelize', sequelize);
@@ -26,6 +27,26 @@ const {getProfile} = require('./middleware/getProfile'),
     addClientDetailsToPayments} = require('./services/ContractService'),
 
   {serverError, unauthorizedError, notFound, badRequest, sendError} = require('./helper/Errors');
+
+/**
+ * A basic health check route
+*/
+app.get('/health', async (req, res) => {
+  try {
+    // Check if database file exists
+    const dbFileExists = fs.existsSync('./database.sqlite3');
+    if (!dbFileExists) {
+      const error = serverError('Database file does not exist');
+      return sendError(error, res);
+    }
+    // Check if the database can be reached
+    await sequelize.query('SELECT 1');
+    return res.status(200).json({status: 'ok'});
+  } catch (error) {
+    console.error(error);
+    sendError(serverError(), res);
+  }
+});
 
 /**
  * @returns contract by id

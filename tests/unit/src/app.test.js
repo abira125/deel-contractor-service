@@ -1,17 +1,10 @@
 const request = require('supertest');
-const app = require('../../../src/app'); // Adjust this to the correct path of your app
-const { Contract } = require('../../../src/model'); // Adjust the path to your model
-// const { getProfile } = require('../../../__mocks__/getProfile');
+const app = require('../../../src/app');
+const { Contract } = require('../../../src/model');
 const { getProfile } = require('../../../src/middleware/getProfile');
 const {getActiveContractsForProfile,
   getNonTerminatedContractsForProfile,
-  getUnpaidJobsForContracts,
-  getJobAndContractByJobId,
-  makePaymentForJob,
-  groupPaymentsByContractor,
-  groupPaymentsByProfession,
-  groupPaymentsByClient,
-  addClientDetailsToPayments} = require('../../../src/services/ContractService');
+  getUnpaidJobsForContracts} = require('../../../src/services/ContractService');
 
 jest.mock('../../../src/model'); // Mock the model
 jest.mock('../../../src/services/ContractService');
@@ -23,7 +16,7 @@ jest.mock('../../../src/middleware/getProfile', () => ({
   })
 }));
 
-describe.skip('GET /contracts/:id', () => {
+describe('GET /contracts/:id', () => {
   beforeAll(() => {
     jest.clearAllMocks();
   }
@@ -90,7 +83,7 @@ describe.skip('GET /contracts/:id', () => {
   });
 });
 
-describe.skip('GET /contracts/', () => {
+describe('GET /contracts/', () => {
   beforeAll(() => {
     jest.clearAllMocks();
   }
@@ -152,7 +145,7 @@ describe.skip('GET /contracts/', () => {
 });
 
 
-describe.skip('GET /jobs/unpaid', () => {
+describe('GET /jobs/unpaid', () => {
   beforeAll(() => {
     jest.clearAllMocks();
   }

@@ -16,16 +16,7 @@ describe('groupPaymentsByProfession', () => {
     ];
 
     // Resolve mock to return profession programmer for ContractorId 2
-    Profile.findOne.mockImplementation((query) => {
-      if (query.where.id === 1) {
-        return Promise.resolve({ profession: 'musician' });
-      } else if (query.where.id === 2) {
-        return Promise.resolve({ profession: 'programmer' });
-      } else if (query.where.id === 3) {
-        return Promise.resolve({ profession: 'wizard' });
-      }
-      return Promise.resolve(null);
-    });
+    Profile.findAll.mockResolvedValue([{id: 1, profession: 'musician'},{ id: 2, profession: 'programmer' }, { id: 3, profession: 'wizard' }]);
 
 
     const professionPayMap = await groupPaymentsByProfession(paymentsByContractor);

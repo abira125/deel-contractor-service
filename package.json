@@ -16,7 +16,7 @@
     "init": "node ./src/server.js",
     "seed": "node ./scripts/seedDb.js",
     "deploy": "npm run seed && npm run init",
-    "test": "jest ----detectOpenHandles --coverage tests"
+    "test": "jest --coverage tests"
   },
   "devDependencies": {
     "concurrently": "^8.0.1",
@@ -26,7 +26,7 @@
     "supertest": "^6.3.3"
   },
   "engines": {
-    "node": ">=10.16.3"
+    "node": ">=18.0.0"
   },
   "engineStrict": true
 }

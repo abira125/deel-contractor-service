@@ -13,6 +13,7 @@ const getActiveContractsForProfile = async (profile) => {
     // Get all contracts for that profile Id: Both as a contractor and a client?
     const asKeyword =  profileType === 'contractor' ? 'Contractor': 'Client';
 
+    //ToDo: Pick only the required fields. SELECT * not a good idea
     const profileWithContracts = await Profile.findOne({
       where: { id: profileId},
       include: [{
@@ -43,6 +44,7 @@ const getNonTerminatedContractsForProfile = async (profile) => {
     // Get all contracts for that profile Id: Both as a contractor and a client?
     const asKeyword =  profileType === 'contractor' ? 'Contractor': 'Client';
 
+    //ToDo: Pick only the required fields. SELECT * not a good idea
     const profileWithContracts = await Profile.findOne({
       where: { id: profileId},
       include: [{
@@ -67,6 +69,7 @@ const getNonTerminatedContractsForProfile = async (profile) => {
 
 const getUnpaidJobsForContracts = async (contractIds) => {
   // ToDo: Use IN query with chunking like in groupPaymentsByProfession for better performance and control over concurrency
+  // ToDo: Pick only the required fields. SELECT * not a good idea
   try {
     const unpaidJobs = await Job.findAll({
       where: {
@@ -142,6 +145,14 @@ const groupPaymentsByContractor = async (startDate, endDate) => {
 };
 
 const groupPaymentsByProfession = async (paymentsByContractor) => {
+  if (!Array.isArray(paymentsByContractor)) {
+    return {};
+  }
+
+  if (paymentsByContractor.length === 0) {
+    return {};
+  }
+
   const professionPayMap = {};
 
   const contractorIds = paymentsByContractor.map((contractorPayment) => contractorPayment.ContractorId);
@@ -168,9 +179,10 @@ const groupPaymentsByProfession = async (paymentsByContractor) => {
   });
 
   // Group payments by profession
-  contractorProfiles.forEach((contractorProfile) => {
+  paymentsByContractor.forEach((contractorPayment) => {
+    const {ContractorId: contractorId} = contractorPayment;
+    const contractorProfile = contractorProfiles.find((profile) => profile.id === contractorId);
     const {profession: contractorProfession} = contractorProfile;
-    const contractorPayment = paymentsByContractor.find((payment) => payment.ContractorId === contractorProfile.id);
 
     if (professionPayMap[contractorProfession]) {
       professionPayMap[contractorProfession] += contractorPayment.totalPaid;
